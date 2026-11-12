@@ -52,6 +52,12 @@ What `install.sh` does:
 2. Creates the `reports/` directory for log output
 3. With `--cron`, adds a crontab entry for the AI news summary (skips if already present)
 
+**Custom skills directory:** set `ORCA_SKILLS_DIR` to install to a different location (useful for testing):
+
+```bash
+ORCA_SKILLS_DIR=/tmp/test-skills ./install.sh
+```
+
 ### Step 3 — Restart your Orca session
 
 Orca only discovers new skills at startup. Close and reopen your Orca session after running `install.sh`.
@@ -158,6 +164,16 @@ Then restart your Orca session. The installer overwrites existing skills with th
 
 ---
 
+## Important Notes
+
+- **Cron is per-machine.** The schedule is not shared via git. Every teammate must run `./install.sh --cron` on their own machine.
+- **Keep the clone in place.** The cron job runs the script from the cloned repo. If you move or delete the `Orca-Automation/` folder, the cron job will break.
+- **Restart Orca after every install/update.** Orca only discovers skills at startup.
+- **macOS cron may need Full Disk Access.** If the cron job silently fails on macOS, grant Full Disk Access to `/usr/sbin/cron` in System Settings > Privacy & Security.
+- **Your Mac must be awake.** Cron jobs don't run while the machine is asleep. Consider `caffeinate` or a launchd alternative if needed.
+
+---
+
 ## Troubleshooting
 
 | Problem | Fix |
@@ -165,8 +181,10 @@ Then restart your Orca session. The installer overwrites existing skills with th
 | Orca doesn't recognize the skill | Restart your Orca session |
 | Skill not in `~/.agents/skills/` | Re-run `./install.sh` |
 | Cron job not running | Run `crontab -l` to check; re-run `./install.sh --cron` |
+| Cron runs but no output | On macOS, grant Full Disk Access to `/usr/sbin/cron` |
 | News script fails with network error | Check internet connection; RSS sources may be temporarily down |
 | `install.sh: Permission denied` | Run `chmod +x install.sh` |
+| The Verge returns 0 items | Already fixed — script now handles Atom feeds |
 
 ---
 
@@ -175,6 +193,7 @@ Then restart your Orca session. The installer overwrites existing skills with th
 ```
 Orca-Automation/
 ├── install.sh                    # One-command setup script
+├── TEAM_GUIDE.md                 # This guide
 ├── reports/                      # Cron job output logs
 │   └── ai_news_summary.log
 ├── hello-automation/             # Skill: hello world
@@ -184,7 +203,7 @@ Orca-Automation/
 └── ai-news-automation/           # Skill: AI news summary
     ├── SKILL.md
     └── scripts/
-        └── ai_news_summary.py
+        └── ai_news_summary.py    #   supports RSS + Atom, proper date parsing
 ```
 
 Each skill folder is self-contained. The `install.sh` script discovers skills automatically by scanning for `SKILL.md` files — no manual registration needed.
