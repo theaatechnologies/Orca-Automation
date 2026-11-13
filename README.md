@@ -14,15 +14,19 @@ This project uses AI-powered automation to eliminate manual testing pain and str
 
 ## 🚀 Quick Start
 
+Needs only [Orca](https://github.com/stablyai/orca) running, plus `just git jq`.
+
 ```bash
 sudo apt install -y just git jq   # once
-just setup                        # doctor + local config + launch workshop
-just test                         # run all tests in the workshop
-just agent                        # AI agent inside the workshop
-just --list                       # everything else; `just skills` lists agent skills
+just setup                        # links skills, registers scheduled automations (disabled)
+just skills                       # list agent skills
+just automations                  # list scheduled Orca automations
+ENABLE=1 just automations-install # (re)create them enabled; or enable in the Orca app
+just so-check                     # snap-openstack lint+mypy+unit+Go (auto-launches the workshop)
 ```
 
-Agents: read `AGENTS.md`. Skills live in `skills/`.
+The workshop container (Ubuntu 24.04, Go/Node/uv) is optional and starts on demand:
+`just setup-workshop` needs `workshop` + `lxd`. Agents: read `AGENTS.md`.
 
 ### Manual prerequisites (what `just doctor` checks)
 
@@ -78,7 +82,7 @@ My-app/
 ├── index.js                      # Node.js application
 ├── package.json                  # Node.js configuration
 ├── go.mod                        # Go modules
-└── orca.yaml                     # Orca workflow configuration
+└── automations/                  # scheduled Orca automations (JSON -> `orca automations create`)
 ```
 
 ## 🤖 AI-Powered Workflows
@@ -205,14 +209,9 @@ Pre-release testing environment.
 
 ## ⚙️ Configuration
 
-### Orca Configuration (`orca.yaml`)
+### Orca Automations (`automations/*.json`)
 
-Defines:
-- Automation workflows
-- AI agent roles
-- Testing strategy
-- Release configuration
-- Notifications
+Each file defines a scheduled agent run (name, trigger, provider, prompt). `just automations-install` registers them with `orca automations create`, disabled by default.
 
 ### GitHub Actions (`.github/workflows/orca-automation.yml`)
 
@@ -247,7 +246,7 @@ npm run test:watch
 orca status
 
 # View Orca workflows
-cat orca.yaml
+ls automations/
 ```
 
 ### Orca Operations

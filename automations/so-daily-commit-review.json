@@ -1,0 +1,6 @@
+{
+  "name": "snap-openstack: daily review of new commits",
+  "trigger": "weekdays", "time": "09:00",
+  "provider": "claude",
+  "prompt": "Use the so-pr-review and so-run-checks skills. Run `just so-clone`, review commits that landed on git/snap-openstack main in the last 24 hours, run `just so-lint` and `just so-types`, and save a draft review to reviews/<sha>.md. Draft only: do not post comments, commit or push."
+}

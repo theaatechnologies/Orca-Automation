@@ -9,7 +9,7 @@ tox    := "uvx --with tox-uv tox"
 in_ws  := "workshop exec dev -- bash -lc"
 
 # Install build tools in the workshop (idempotent; gcc for netifaces, dqlite PPA for the Go daemon, as upstream CI does)
-so-prepare: so-clone
+so-prepare: so-clone setup-workshop
     workshop exec dev -- bash -lc 'command -v gcc >/dev/null && command -v make >/dev/null || sudo apt-get install -y -qq build-essential python3-dev libffi-dev libssl-dev pkg-config >/dev/null'
     workshop exec dev -- bash -lc 'dpkg -s libdqlite1.17-dev >/dev/null 2>&1 || { sudo add-apt-repository -y ppa:dqlite/dev >/dev/null && sudo apt-get install -y -qq libdqlite1.17-dev >/dev/null; }'
 

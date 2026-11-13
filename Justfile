@@ -11,37 +11,30 @@ import 'just/snap-openstack.just'
 help:
     @just --list
 
-# One-command setup: checks host, creates local config, launches the workshop
-setup: doctor config
-    #!/usr/bin/env bash
-    set -euo pipefail
-    status="$(workshop info {{env_name}} 2>/dev/null | awk '/^status:/{print $2}' || true)"
-    case "$status" in
-        ready|Ready) echo "✓ workshop '{{env_name}}' already running" ;;
-        "")          echo "Launching workshop '{{env_name}}'..."; workshop launch {{env_name}} --verbose ;;
-        *)           echo "Starting workshop '{{env_name}}' ($status)..."; workshop start {{env_name}} ;;
-    esac
-    echo ""
-    echo "✓ Setup complete. Try: just test | just shell | just agent"
+# Light setup, no containers: checks Orca, links skills, registers automations (disabled until you enable them)
+setup: doctor config skills-install automations-install
+    @echo ""
+    @echo "✓ Setup complete. Try: just skills | just automations | just so-check | just agent"
 
-# Read-only check of host prerequisites
+# Check what the light setup needs (git, jq, Orca running)
 doctor:
     #!/usr/bin/env bash
     fails=0
-    check() { # name, fix
-        if command -v "$1" >/dev/null 2>&1; then printf '✓ %s\n' "$1"
-        else printf '✗ %s missing  fix: %s\n' "$1" "$2" >&2; fails=$((fails+1)); fi
-    }
-    check git      "sudo apt install -y git"
-    check jq       "sudo apt install -y jq"
-    check workshop "sudo snap install --classic workshop"
-    check lxc      "sudo snap install lxd --channel=6/stable"
-    if command -v lxc >/dev/null 2>&1; then
-        if id -nG | tr ' ' '\n' | grep -qx lxd; then echo "✓ user in lxd group"
-        else echo "✗ not in lxd group  fix: sudo usermod -aG lxd $USER (then re-login)" >&2; fails=$((fails+1)); fi
-    fi
-    [ -f orca.yaml ] && echo "✓ orca.yaml" || { echo "✗ orca.yaml missing" >&2; fails=$((fails+1)); }
-    [ "$fails" -eq 0 ] && echo "✓ host ready" || { echo "✗ $fails problem(s) above" >&2; exit 1; }
+    for t in git jq orca; do
+        if command -v "$t" >/dev/null 2>&1; then echo "✓ $t"; else echo "✗ $t missing" >&2; fails=$((fails+1)); fi
+    done
+    if orca status 2>/dev/null | grep -q 'runtimeReachable: true'; then echo "✓ Orca runtime reachable"
+    else echo "✗ Orca is not running: open the Orca app" >&2; fails=$((fails+1)); fi
+    [ "$fails" -eq 0 ] && echo "✓ ready" || { echo "✗ $fails problem(s)" >&2; exit 1; }
+
+# Extra checks for the optional workshop container
+doctor-workshop:
+    #!/usr/bin/env bash
+    fails=0
+    command -v workshop >/dev/null 2>&1 && echo "✓ workshop" || { echo "✗ workshop: sudo snap install --classic workshop" >&2; fails=$((fails+1)); }
+    command -v lxc >/dev/null 2>&1 && echo "✓ lxc" || { echo "✗ lxc: sudo snap install lxd --channel=6/stable" >&2; fails=$((fails+1)); }
+    id -nG | tr ' ' '\n' | grep -qx lxd && echo "✓ lxd group" || { echo "✗ add yourself to lxd: sudo usermod -aG lxd $USER" >&2; fails=$((fails+1)); }
+    [ "$fails" -eq 0 ] || exit 1
 
 # Create gitignored local config from the example (idempotent)
 config:
@@ -54,8 +47,50 @@ config:
         echo "✓ config/config.json exists"
     fi
 
+# Make skills/ visible to every agent (opencode, Claude, Codex read .agents/skills and .opencode/skills)
+skills-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    for dir in .agents/skills .opencode/skills; do
+        mkdir -p "$dir"
+        for s in skills/*/; do ln -sfn "../../skills/$(basename "$s")" "$dir/$(basename "$s")"; done
+    done
+    echo "✓ linked $(ls -d skills/*/ | wc -l) skills into .agents/skills and .opencode/skills"
+
+# Register the scheduled Orca automations in automations/ (created DISABLED; ENABLE=1 just automations-install to enable)
+automations-install:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    existing="$(orca automations list --json 2>/dev/null || echo '[]')"
+    for f in automations/*.json; do
+        name=$(jq -r .name "$f")
+        if echo "$existing" | jq -e --arg n "$name" '.. | objects | select(.name? == $n)' >/dev/null 2>&1; then
+            echo "✓ exists: $name"; continue
+        fi
+        args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
+              --provider "$(jq -r .provider "$f")" --prompt "$(jq -r .prompt "$f")")
+        day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
+        [ "${ENABLE:-0}" = 1 ] && args+=(--enabled) || args+=(--disabled)
+        orca automations create "${args[@]}" >/dev/null && echo "✓ created: $name"
+    done
+
+# List the registered automations
+automations:
+    orca automations list
+
+# Optional: launch the isolated workshop container (so-* checks do this automatically)
+setup-workshop: doctor-workshop
+    #!/usr/bin/env bash
+    set -euo pipefail
+    status="$(workshop info {{env_name}} 2>/dev/null | awk '/^status:/{print $2}' || true)"
+    case "$status" in
+        ready|Ready) echo "✓ workshop '{{env_name}}' already running" ;;
+        "")          workshop launch {{env_name}} --verbose ;;
+        *)           workshop start {{env_name}} ;;
+    esac
+
 # Run tests inside the workshop: all | unit | integration
-test kind="all":
+test kind="all": setup-workshop
     workshop exec {{env_name}} -- ./scripts/run-tests.sh {{kind}}
 
 # Interactive shell inside the workshop

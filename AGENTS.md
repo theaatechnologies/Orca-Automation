@@ -4,18 +4,18 @@
 
 ## Overview
 Project workspace with automated testing and weekly releases, run in an isolated
-Workshop container (`dev`). `just` is the single entrypoint; `orca.yaml` defines workflows.
+Workshop container (`dev`). `just` is the single entrypoint; `automations/*.json` define scheduled Orca automations.
 
 ## Layout
 ```
 Justfile          entrypoint: setup, doctor, test, release, shell, agent, skills
-orca.yaml         Orca workflow definitions (testing, review, weekly release)
+automations/      scheduled Orca automations (JSON); registered by `just automations-install`
 .workshop/        Workshop environments (dev.yaml, test.yaml)
 scripts/          run-tests.sh, generate-release-notes.sh, weekly-release.sh
 just/             recipe modules (snap-openstack.just)
-workflows/        agent workflows per target repo
 git/              cloned target repos (gitignored)
-skills/           agent skills, one dir each with SKILL.md
+skills/           agent skills, one dir each with SKILL.md (source of truth)
+.agents/skills, .opencode/skills   symlinks to skills/ so agents find them
 config/example/   config templates; config/config.json is local and gitignored
 tests/            unit/ and integration/
 ```
@@ -23,7 +23,8 @@ tests/            unit/ and integration/
 ## Runbook
 ```bash
 just doctor     # verify host
-just setup      # idempotent: doctor + local config + launch workshop
+just setup      # idempotent, no containers: doctor + config + link skills + register automations
+just setup-workshop  # optional container; so-* recipes start it on demand
 just test       # all tests inside the workshop (just test unit|integration)
 just release-notes
 just so-clone    # fetch canonical/snap-openstack into git/
@@ -42,5 +43,5 @@ just release patch|minor|major
 ## Skills
 See `skills/`: `run-tests`, `release-notes`, `weekly-release`, `code-review`,
 and for snap-openstack: `so-run-checks`, `so-pr-review`, `so-manifest-update`,
-`so-bug-triage`, `so-add-feature`. Workflows: `workflows/snap-openstack.yaml`.
+`so-bug-triage`, `so-add-feature`. Automations: `automations/`. Skills are linked into `.agents/skills` and `.opencode/skills` by `just skills-install`.
 Recipes: `just/snap-openstack.just`. Target repo lives in gitignored `git/`.
