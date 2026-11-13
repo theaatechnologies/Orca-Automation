@@ -11,6 +11,10 @@ echo "=========================================="
 # Configuration
 RELEASE_BRANCH="main"
 RELEASE_TYPE=${1:-patch}  # major, minor, or patch
+case "$RELEASE_TYPE" in
+    major|minor|patch) ;;
+    *) echo "Release type must be major, minor or patch" >&2; exit 1 ;;
+esac
 
 # Get last release tag
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
@@ -30,8 +34,8 @@ git pull origin "$RELEASE_BRANCH"
 
 # Step 2: Run all tests
 echo ""
-echo "Step 2: Running full test suite..."
-if ! ./scripts/run-tests.sh all; then
+echo "Step 2: Running quality gates and the sample app tests..."
+if ! just check || ! (cd examples/sample-app && ../../scripts/run-tests.sh all); then
     echo "❌ Tests failed! Cannot proceed with release."
     exit 1
 fi
