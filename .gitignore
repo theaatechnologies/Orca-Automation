@@ -56,3 +56,4 @@ yarn-error.log*
 # Cloned repositories
 /git/
 /reports/
+/RELEASE_NOTES.md

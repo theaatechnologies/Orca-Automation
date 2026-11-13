@@ -1,101 +1,42 @@
 #!/bin/bash
-# AI-powered release notes generator using Orca
+# Release notes generator: collects commits, asks opencode to write polished notes
+# (skill: release-notes), falls back to a plain commit list if opencode is unavailable.
+# Usage: generate-release-notes.sh [since-tag] [output-file]   (run in the repo to document)
 
-set -e
+set -euo pipefail
 
 SINCE_TAG=${1:-$(git describe --tags --abbrev=0 2>/dev/null || echo "")}
 OUTPUT_FILE=${2:-RELEASE_NOTES.md}
 
-echo "Generating release notes since: $SINCE_TAG"
-
-# Get all commits since last tag
 if [ -n "$SINCE_TAG" ]; then
-    COMMITS=$(git log "$SINCE_TAG"..HEAD --pretty=format:"%H|%s|%an|%ae|%ad" --date=short)
+    RANGE="$SINCE_TAG..HEAD"; LABEL="since $SINCE_TAG"
 else
-    COMMITS=$(git log --pretty=format:"%H|%s|%an|%ae|%ad" --date=short)
+    RANGE="HEAD"; LABEL="(no tags yet: last 50 commits)"
 fi
-
-# Get closed PRs (if using GitHub)
-if command -v gh &> /dev/null; then
-    echo "Fetching closed PRs..."
-    PRS=$(gh pr list --state merged --limit 100 --json number,title,author,mergedAt)
-else
-    PRS=""
+COMMITS=$(git log $RANGE -n 50 --no-merges --pretty=format:"- %s (%h, %an)" --reverse)
+if [ -z "$COMMITS" ]; then
+    echo "No commits $LABEL: nothing to write." >&2
+    exit 1
 fi
+echo "Generating release notes $LABEL"
 
-# Create temporary file with commit data
-TEMP_FILE=$(mktemp)
-cat > "$TEMP_FILE" << EOF
-# Release Notes Generation Task
-
-## Commits since last release:
-$COMMITS
-
-## Merged Pull Requests:
-$PRS
-
-## Instructions:
-Generate comprehensive release notes in Markdown format with the following sections:
-
-### 🚀 New Features
-List all new features added
-
-### 🐛 Bug Fixes
-List all bug fixes
-
-### ⚡ Performance Improvements
-List performance enhancements
-
-### 📚 Documentation
-List documentation updates
-
-### 🔧 Maintenance
-List maintenance and refactoring work
-
-### 💥 Breaking Changes
-Highlight any breaking changes
-
-### 📦 Dependencies
-List dependency updates
-
-For each item:
-- Use bullet points
-- Include commit SHA (abbreviated)
-- Reference PR numbers if available
-- Credit contributors
-- Be concise but informative
-
-Format example:
-- ✨ Add user authentication system (#123) - @username (abc1234)
-EOF
-
-echo "Calling Orca AI agent to generate release notes..."
-
-# Use Orca to generate release notes with Claude
-orca agent run claude \
-    --task "$(cat $TEMP_FILE)" \
-    --output "$OUTPUT_FILE" 2>/dev/null || {
-    
-    # Fallback: Generate basic release notes without AI
-    echo "AI generation failed, creating basic release notes..."
-    
-    cat > "$OUTPUT_FILE" << EOF
-# Release Notes
-
-## Changes Since $SINCE_TAG
-
-### Commits
-$(git log $SINCE_TAG..HEAD --pretty=format:"- %s (%h)" --reverse)
-
-### Contributors
-$(git log $SINCE_TAG..HEAD --pretty=format:"%an" | sort -u)
-
----
-Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")
-EOF
+basic_notes() {
+    {
+        echo "# Release Notes"; echo; echo "## Changes $LABEL"; echo
+        echo "$COMMITS"; echo
+        echo "---"; echo "Generated on: $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+    } > "$OUTPUT_FILE"
 }
 
-rm -f "$TEMP_FILE"
-
-echo "Release notes generated: $OUTPUT_FILE"
-cat "$OUTPUT_FILE"
+if command -v opencode >/dev/null 2>&1; then
+    rm -f "$OUTPUT_FILE"
+    PROMPT="Use the release-notes skill. Write release notes in Markdown to $OUTPUT_FILE, grouped into Features, Fixes and Chores, one line per change, no noise. Commits $LABEL:
+$COMMITS"
+    if timeout 300 opencode run "$PROMPT" >/dev/null 2>&1 && [ -s "$OUTPUT_FILE" ]; then
+        echo "✓ AI release notes written to $OUTPUT_FILE"
+        exit 0
+    fi
+    echo "opencode failed or wrote nothing; using plain commit list" >&2
+fi
+basic_notes
+echo "✓ Basic release notes written to $OUTPUT_FILE"

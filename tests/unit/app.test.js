@@ -1,4 +1,4 @@
-const { Calculator, App } = require('../index');
+const { Calculator, App } = require('../../index');
 
 describe('Calculator', () => {
   let calculator;

@@ -16,6 +16,12 @@ RELEASE_TYPE=${1:-patch}  # major, minor, or patch
 LAST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
 echo "Last release: $LAST_TAG"
 
+# Safety: refuse to run with local changes (the release commit uses git add -A)
+if [ -n "$(git status --porcelain)" ]; then
+    echo "Working tree is not clean. Commit or stash first." >&2
+    exit 1
+fi
+
 # Step 1: Ensure we're on the right branch
 echo ""
 echo "Step 1: Checking out $RELEASE_BRANCH..."

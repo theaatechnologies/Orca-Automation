@@ -5,6 +5,7 @@ set -e
 
 TEST_TYPE=${1:-all}
 RESULTS_DIR="test-results"
+FAILED=0   # set to 1 by any failing test command (linters stay advisory)
 
 echo "=========================================="
 echo "Running tests in Workshop environment"
@@ -22,14 +23,14 @@ run_go_tests() {
         if [ "$TEST_TYPE" = "unit" ] || [ "$TEST_TYPE" = "all" ]; then
             echo "Running Go unit tests..."
             go test ./... -v -race -coverprofile="$RESULTS_DIR/go-coverage.out" \
-                -covermode=atomic -json > "$RESULTS_DIR/go-unit-tests.json" || true
+                -covermode=atomic -json > "$RESULTS_DIR/go-unit-tests.json" || FAILED=1
             go tool cover -html="$RESULTS_DIR/go-coverage.out" -o "$RESULTS_DIR/go-coverage.html"
         fi
         
         # Integration tests
         if [ "$TEST_TYPE" = "integration" ] || [ "$TEST_TYPE" = "all" ]; then
             echo "Running Go integration tests..."
-            go test -tags=integration ./... -v > "$RESULTS_DIR/go-integration-tests.log" || true
+            go test -tags=integration ./... -v > "$RESULTS_DIR/go-integration-tests.log" || FAILED=1
         fi
     else
         echo "No go.mod found, skipping Go tests"
@@ -49,13 +50,13 @@ run_node_tests() {
         # Unit tests
         if [ "$TEST_TYPE" = "unit" ] || [ "$TEST_TYPE" = "all" ]; then
             echo "Running Node.js unit tests..."
-            npm test -- --coverage --json --outputFile="$RESULTS_DIR/node-unit-tests.json" || true
+            npm test -- --coverage --json --outputFile="$RESULTS_DIR/node-unit-tests.json" || FAILED=1
         fi
         
         # Integration tests
         if [ "$TEST_TYPE" = "integration" ] || [ "$TEST_TYPE" = "all" ]; then
             echo "Running Node.js integration tests..."
-            npm run test:integration > "$RESULTS_DIR/node-integration-tests.log" 2>&1 || true
+            npm run test:integration > "$RESULTS_DIR/node-integration-tests.log" 2>&1 || FAILED=1
         fi
     else
         echo "No package.json found, skipping Node.js tests"
@@ -127,8 +128,9 @@ main() {
     
     echo ""
     echo "=========================================="
-    echo "Test execution completed!"
+    echo "Test execution completed: $([ "$FAILED" = 0 ] && echo PASSED || echo FAILED)"
     echo "=========================================="
 }
 
 main
+exit "$FAILED"
