@@ -20,9 +20,11 @@ setup: doctor config skills-install automations-install
 doctor:
     #!/usr/bin/env bash
     fails=0
-    for t in git jq orca; do
+    for t in git jq orca opencode; do
         if command -v "$t" >/dev/null 2>&1; then echo "✓ $t"; else echo "✗ $t missing" >&2; fails=$((fails+1)); fi
     done
+    if opencode providers list 2>/dev/null | grep -qE '[1-9][0-9]* credentials'; then echo "✓ opencode has a model provider"
+    else echo "✗ opencode has no credentials: run 'opencode providers login'" >&2; fails=$((fails+1)); fi
     if orca status 2>/dev/null | grep -q 'runtimeReachable: true'; then echo "✓ Orca runtime reachable"
     else echo "✗ Orca is not running: open the Orca app" >&2; fails=$((fails+1)); fi
     [ "$fails" -eq 0 ] && echo "✓ ready" || { echo "✗ $fails problem(s)" >&2; exit 1; }
@@ -67,9 +69,11 @@ automations-install:
         if echo "$existing" | jq -e --arg n "$name" '.. | objects | select(.name? == $n)' >/dev/null 2>&1; then
             echo "✓ exists: $name"; continue
         fi
+        model=$(jq -r '.model // empty' "$f")
         args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
               --provider "$(jq -r .provider "$f")" --prompt "$(jq -r .prompt "$f")")
         day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
+        [ -n "$model" ] && args+=(--extra-agent-args="--model $model")
         [ "${ENABLE:-0}" = 1 ] && args+=(--enabled) || args+=(--disabled)
         orca automations create "${args[@]}" >/dev/null && echo "✓ created: $name"
     done
@@ -97,9 +101,9 @@ test kind="all": setup-workshop
 shell:
     workshop shell {{env_name}}
 
-# Start the AI agent inside the workshop
+# Start the opencode agent in this project (it sees skills/ and runs `just so-*` in the workshop)
 agent:
-    workshop exec -i {{env_name}} -- opencode
+    opencode
 
 # Generate AI release notes (optional: since tag)
 release-notes since="":

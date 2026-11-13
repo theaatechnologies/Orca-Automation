@@ -23,7 +23,7 @@ tests/            unit/ and integration/
 ## Runbook
 ```bash
 just doctor     # verify host
-just setup      # idempotent, no containers: doctor + config + link skills + register automations
+just setup      # needs opencode logged in (`opencode providers login`); idempotent, no containers: doctor + config + link skills + register automations
 just setup-workshop  # optional container; so-* recipes start it on demand
 just test       # all tests inside the workshop (just test unit|integration)
 just release-notes

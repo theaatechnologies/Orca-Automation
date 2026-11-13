@@ -1,6 +1,6 @@
 {
   "name": "snap-openstack: weekly manifest refresh check",
   "trigger": "weekly", "day": 1, "time": "10:00",
-  "provider": "claude",
+  "provider": "opencode",
   "prompt": "Use the so-manifest-update skill. Run `just so-clone`, then check whether charm revisions under git/snap-openstack/manifests are stale and `just so-validate-yaml` passes. Report findings in reviews/manifest-<date>.md. Do not commit, push or open PRs."
 }
