@@ -1,0 +1,10 @@
+name: dev
+base: ubuntu@24.04
+sdks:
+  - name: opencode
+  - name: go
+    channel: "1.27"
+  - name: node
+    channel: "24"
+  - name: uv
+    channel: latest/stable

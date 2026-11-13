@@ -1,0 +1,57 @@
+# Gitignore for My-App
+
+# Dependencies
+node_modules/
+vendor/
+
+# Test coverage
+coverage/
+test-results/
+*.out
+*.html
+
+# Build artifacts
+dist/
+build/
+*.exe
+*.dll
+*.so
+*.dylib
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Workshop
+.workshop.lock
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Local config
+/config/config.json
+/config/local.json
+
+# Cloned repositories
+/git/

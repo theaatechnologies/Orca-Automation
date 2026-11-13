@@ -1,0 +1,236 @@
+# Orca Workflow Configuration for Automated Weekly Releases
+# This configures AI-powered automation for testing and releases
+
+project:
+  name: My-app
+  type: full-stack
+  release_schedule: weekly
+
+# Workshop environments for different stages
+environments:
+  dev:
+    type: workshop
+    config: .workshop/dev.yaml
+    description: Development environment with all SDKs
+  
+  test:
+    type: workshop
+    base: ubuntu@24.04
+    sdks:
+      - name: go
+        channel: "1.27"
+      - name: node
+        channel: "24"
+    description: Clean testing environment
+  
+  staging:
+    type: workshop
+    base: ubuntu@24.04
+    sdks:
+      - name: go
+        channel: "1.27"
+      - name: node
+        channel: "24"
+    description: Staging environment for pre-release testing
+
+# Automated workflows
+automations:
+  # Run tests on every commit
+  - name: continuous-testing
+    description: Run unit and integration tests automatically
+    trigger: 
+      - on_commit
+      - on_pr
+    environment: test
+    steps:
+      - name: setup
+        agent: opencode
+        command: |
+          echo "Setting up test environment..."
+          
+      - name: unit-tests
+        agent: opencode
+        command: |
+          echo "Running unit tests..."
+          if [ -f "go.mod" ]; then
+            go test ./... -v -cover
+          fi
+          if [ -f "package.json" ]; then
+            npm test
+          fi
+          
+      - name: integration-tests
+        agent: opencode
+        command: |
+          echo "Running integration tests..."
+          if [ -d "tests/integration" ]; then
+            ./scripts/run-integration-tests.sh
+          fi
+          
+      - name: report
+        agent: claude
+        task: generate_test_report
+        output: test-results.md
+  
+  # Weekly release automation
+  - name: weekly-release
+    description: Automated weekly release with testing and release notes
+    trigger: 
+      - schedule: "0 10 * * FRI"  # Every Friday at 10 AM
+      - manual
+    environment: staging
+    steps:
+      - name: validate-changes
+        agent: claude
+        task: |
+          Review all commits since last release
+          Identify breaking changes
+          Verify all tests pass
+          
+      - name: run-full-test-suite
+        agent: opencode
+        parallel: true
+        tasks:
+          - unit-tests
+          - integration-tests
+          - e2e-tests
+          
+      - name: generate-release-notes
+        agent: claude
+        task: |
+          Generate comprehensive release notes from:
+          - Git commits since last release
+          - Closed PRs
+          - Resolved issues
+          Output format: RELEASE_NOTES.md
+          
+      - name: version-bump
+        agent: opencode
+        task: |
+          Determine version bump (major/minor/patch)
+          Update version files
+          Create git tag
+          
+      - name: create-release-pr
+        agent: opencode
+        task: |
+          Create release branch
+          Commit version bump and release notes
+          Create PR for review
+          
+      - name: notify
+        agent: opencode
+        task: |
+          Send notification to team
+          Include release notes preview
+          Request final review
+
+  # Bug fix verification
+  - name: verify-bug-fix
+    description: AI-powered verification of bug fixes
+    trigger: 
+      - label: "bug-fix"
+    steps:
+      - name: analyze-fix
+        agent: claude
+        task: |
+          Analyze the bug fix code
+          Verify it addresses the root cause
+          Check for potential regressions
+          
+      - name: generate-test-cases
+        agent: codex
+        task: |
+          Generate test cases for the bug fix
+          Include edge cases
+          Add regression tests
+          
+      - name: run-verification
+        agent: opencode
+        task: |
+          Run generated tests
+          Verify bug is fixed
+          Check no new issues introduced
+
+# Agent configurations
+agents:
+  opencode:
+    model: anthropic/claude-sonnet-4.5
+    role: primary_developer
+    capabilities:
+      - code_execution
+      - testing
+      - git_operations
+    
+  claude:
+    model: anthropic/claude-sonnet-4.5
+    role: reviewer_and_analyst
+    capabilities:
+      - code_review
+      - documentation
+      - release_notes
+    
+  codex:
+    model: openai/gpt-4
+    role: test_generator
+    capabilities:
+      - test_generation
+      - code_analysis
+
+# Testing configuration
+testing:
+  frameworks:
+    go:
+      - testing
+      - testify
+    javascript:
+      - jest
+      - mocha
+  
+  coverage_threshold: 80
+  
+  test_types:
+    unit:
+      path: "tests/unit"
+      pattern: "*_test.go, *.test.js"
+      
+    integration:
+      path: "tests/integration"
+      pattern: "*_integration_test.go, *.integration.test.js"
+      
+    e2e:
+      path: "tests/e2e"
+      pattern: "*.e2e.test.js"
+
+# Release configuration
+releases:
+  versioning: semver
+  branch: main
+  tag_prefix: "v"
+  
+  changelog:
+    format: markdown
+    sections:
+      - Breaking Changes
+      - New Features
+      - Bug Fixes
+      - Performance Improvements
+      - Documentation
+      - Dependencies
+    
+  notes:
+    include_commits: true
+    include_prs: true
+    include_issues: true
+    group_by: type
+
+# Notifications
+notifications:
+  slack:
+    enabled: false
+    webhook_url: "${SLACK_WEBHOOK_URL}"
+    
+  email:
+    enabled: false
+    recipients:
+      - team@example.com

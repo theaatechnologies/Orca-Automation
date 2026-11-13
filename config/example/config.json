@@ -1,0 +1,6 @@
+{
+  "github_handle": "your-handle",
+  "email": "you@example.com",
+  "release_branch": "main",
+  "default_release_type": "patch"
+}

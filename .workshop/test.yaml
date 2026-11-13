@@ -1,0 +1,16 @@
+# Workshop Environment for Testing
+# Isolated testing environment without development tools
+
+name: test
+base: ubuntu@24.04
+
+sdks:
+  - name: go
+    channel: "1.27"
+  - name: node
+    channel: "24"
+
+# Minimal configuration for clean testing
+environment:
+  TESTING: "true"
+  CI: "true"

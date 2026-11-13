@@ -1,0 +1,53 @@
+# AI-agent workflows for canonical/snap-openstack (cloned to git/snap-openstack).
+# Same schema as orca.yaml. Each step names the skill that carries its instructions.
+
+target:
+  repo: canonical/snap-openstack
+  path: git/snap-openstack
+  setup: just so-clone
+
+automations:
+  - name: pr-check
+    description: Run CI-equivalent checks on a branch
+    trigger: [manual, on_pr]
+    steps:
+      - {name: sync,   agent: opencode, command: just so-clone}
+      - {name: checks, agent: opencode, skill: so-run-checks}
+
+  - name: pr-review
+    description: Draft a convention-aware review (not posted automatically)
+    trigger: [manual, on_pr]
+    steps:
+      - {name: checks, agent: opencode, skill: so-run-checks}
+      - {name: review, agent: claude,   skill: so-pr-review, output: review.md}
+
+  - name: bug-triage
+    description: Turn a Launchpad bug into a failing test and a proposed fix
+    trigger: [manual]
+    input: bug_report
+    steps:
+      - {name: triage, agent: claude,   skill: so-bug-triage}
+      - {name: verify, agent: opencode, skill: so-run-checks}
+
+  - name: manifest-refresh
+    description: Weekly check of charm revisions (upstream also runs Mondays)
+    trigger:
+      - schedule: "0 10 * * MON"
+      - manual
+    steps:
+      - {name: update, agent: opencode, skill: so-manifest-update}
+      - {name: verify, agent: opencode, command: just so-validate-yaml}
+
+  - name: feature-dev
+    description: Spec -> plan -> implement -> check for a new feature
+    trigger: [manual]
+    input: feature_request
+    steps:
+      - {name: implement, agent: opencode, skill: so-add-feature}
+      - {name: checks,    agent: opencode, skill: so-run-checks}
+      - {name: review,    agent: claude,   skill: so-pr-review}
+
+guardrails:
+  - Never push or open PRs unless the user asks.
+  - Never claim checks pass without command output.
+  - Commits must be signed (upstream CI rejects unsigned).

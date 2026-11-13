@@ -1,0 +1,43 @@
+{
+  "name": "my-app",
+  "version": "0.1.0",
+  "description": "Example application with automated testing and release workflow",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest --coverage",
+    "test:unit": "jest --testPathPattern=tests/unit",
+    "test:integration": "jest --testPathPattern=tests/integration",
+    "test:watch": "jest --watch",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "start": "node index.js",
+    "dev": "nodemon index.js"
+  },
+  "keywords": ["automation", "testing", "orca", "workshop"],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "eslint": "^8.56.0",
+    "nodemon": "^3.0.2",
+    "@types/jest": "^29.5.11"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "coverageDirectory": "coverage",
+    "collectCoverageFrom": [
+      "**/*.js",
+      "!**/node_modules/**",
+      "!**/coverage/**",
+      "!jest.config.js"
+    ],
+    "coverageThreshold": {
+      "global": {
+        "branches": 80,
+        "functions": 80,
+        "lines": 80,
+        "statements": 80
+      }
+    }
+  }
+}
