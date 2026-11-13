@@ -1,6 +1,8 @@
 {
   "$schema": "https://opencode.ai/config.json",
-  "instructions": ["AGENTS.md"],
+  "instructions": [
+    "AGENTS.md"
+  ],
   "permission": {
     "edit": "allow",
     "bash": {
@@ -14,7 +16,34 @@
       "gh pr review*": "deny",
       "gh release*": "deny",
       "rm -rf*": "deny",
-      "just release*": "deny"
+      "just release*": "deny",
+      "sudo *": "deny",
+      "curl*|*sh*": "deny",
+      "wget*|*sh*": "deny",
+      "*| bash*": "deny",
+      "*| sh*": "deny",
+      "git config*": "deny",
+      "git remote*": "deny",
+      "git branch -D*": "deny",
+      "git checkout --*": "deny",
+      "chmod -R*": "deny",
+      "chown*": "deny",
+      "dd *": "deny",
+      "mkfs*": "deny",
+      "workshop remove*": "deny",
+      "lxc delete*": "deny",
+      "lxc remote*": "deny",
+      "snap remove*": "deny"
+    },
+    "read": {
+      "*": "allow",
+      "*.env": "deny",
+      "*.env.*": "deny",
+      "*.pem": "deny",
+      "*id_rsa*": "deny",
+      "*id_ed25519*": "deny",
+      "*.git-credentials": "deny",
+      "*auth.json": "deny"
     }
   }
 }
