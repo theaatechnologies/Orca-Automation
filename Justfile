@@ -6,6 +6,9 @@ set shell := ["bash", "-euo", "pipefail", "-c"]
 env_name := "dev"
 
 import 'just/snap-openstack.just'
+import 'just/check.just'
+import 'just/upgrade.just'
+import 'just/worktree.just'
 
 # List all recipes
 help:
@@ -25,9 +28,13 @@ doctor:
     done
     if opencode providers list 2>/dev/null | grep -qE '[1-9][0-9]* credentials'; then echo "✓ opencode has a model provider"
     else echo "✗ opencode has no credentials: run 'opencode providers login'" >&2; fails=$((fails+1)); fi
+    # Security warnings (non-fatal): ambient tokens and plaintext credential stores
+    if [ -n "${GITHUB_TOKEN:-}${GH_TOKEN:-}" ]; then echo "⚠ GITHUB_TOKEN/GH_TOKEN is set: it overrides gh's stored login and leaks into every child process (docs/security.md)" >&2; fi
+    if [ "$(git config --global credential.helper 2>/dev/null)" = "store" ]; then echo "⚠ git credential.helper=store keeps tokens in plaintext (~/.git-credentials): use libsecret or a short-lived fine-grained token (docs/security.md)" >&2; fi
+    if [ -f "$HOME/.git-credentials" ] && [ "$(stat -c %a "$HOME/.git-credentials")" != 600 ]; then echo "⚠ ~/.git-credentials is not mode 600" >&2; fi
     if orca status 2>/dev/null | grep -q 'runtimeReachable: true'; then echo "✓ Orca runtime reachable"
     else echo "✗ Orca is not running: open the Orca app" >&2; fails=$((fails+1)); fi
-    [ "$fails" -eq 0 ] && echo "✓ ready" || { echo "✗ $fails problem(s)" >&2; exit 1; }
+    if [ "$fails" -eq 0 ]; then echo "✓ ready"; else echo "✗ $fails problem(s)" >&2; exit 1; fi
 
 # Make sure opencode is installed and logged in (INSTALL=1 just setup-opencode installs it from opencode.ai)
 setup-opencode:
@@ -53,6 +60,7 @@ target-clone:
     #!/usr/bin/env bash
     set -euo pipefail
     repo=$(jq -r '.target_repo // "canonical/snap-openstack"' config/config.json 2>/dev/null || echo canonical/snap-openstack)
+    ./scripts/safe-arg.py repo "$repo" || { echo "config/config.json target_repo must look like owner/repo" >&2; exit 1; }
     dir="git/${repo##*/}"; mkdir -p git
     if [ -d "$dir/.git" ]; then git -C "$dir" pull --ff-only -q && echo "✓ updated $dir"
     else git clone -q "https://github.com/$repo" "$dir" && echo "✓ cloned $repo -> $dir"; fi
@@ -61,9 +69,9 @@ target-clone:
 doctor-workshop:
     #!/usr/bin/env bash
     fails=0
-    command -v workshop >/dev/null 2>&1 && echo "✓ workshop" || { echo "✗ workshop: sudo snap install --classic workshop" >&2; fails=$((fails+1)); }
-    command -v lxc >/dev/null 2>&1 && echo "✓ lxc" || { echo "✗ lxc: sudo snap install lxd --channel=6/stable" >&2; fails=$((fails+1)); }
-    id -nG | tr ' ' '\n' | grep -qx lxd && echo "✓ lxd group" || { echo "✗ add yourself to lxd: sudo usermod -aG lxd $USER" >&2; fails=$((fails+1)); }
+    if command -v workshop >/dev/null 2>&1; then echo "✓ workshop"; else echo "✗ workshop: sudo snap install --classic workshop" >&2; fails=$((fails+1)); fi
+    if command -v lxc >/dev/null 2>&1; then echo "✓ lxc"; else echo "✗ lxc: sudo snap install lxd --channel=6/stable" >&2; fails=$((fails+1)); fi
+    if id -nG | tr ' ' '\n' | grep -qx lxd; then echo "✓ lxd group"; else echo "✗ add yourself to lxd: sudo usermod -aG lxd $USER" >&2; fails=$((fails+1)); fi
     [ "$fails" -eq 0 ] || exit 1
 
 # Create gitignored local config from the example (idempotent)
@@ -85,7 +93,7 @@ skills-install:
         mkdir -p "$dir"
         for s in skills/*/; do ln -sfn "../../skills/$(basename "$s")" "$dir/$(basename "$s")"; done
     done
-    echo "✓ linked $(ls -d skills/*/ | wc -l) skills into .agents/skills and .opencode/skills"
+    echo "✓ linked $(find skills -mindepth 1 -maxdepth 1 -type d | wc -l) skills into .agents/skills and .opencode/skills"
 
 # Register the scheduled Orca automations in automations/ (created DISABLED; ENABLE=1 just automations-install to enable)
 automations-install:
@@ -121,25 +129,25 @@ setup-workshop: doctor-workshop
         *)           workshop start {{env_name}} ;;
     esac
 
-# Run tests inside the workshop: all | unit | integration
+# Run the sample app tests inside the workshop: all | unit | integration
 test kind="all": setup-workshop
-    workshop exec {{env_name}} -- ./scripts/run-tests.sh {{kind}}
+    workshop exec {{env_name}} -- bash -lc 'cd examples/sample-app && ../../scripts/run-tests.sh {{kind}}'
 
 # Interactive shell inside the workshop
 shell:
     workshop shell {{env_name}}
 
-# Start the opencode agent in this project (it sees skills/ and runs `just so-*` in the workshop)
-agent:
-    opencode
+# Start the interactive dev agent (can commit locally; every push needs your approval)
+agent *dir:
+    opencode --agent dev {{dir}}
 
 # Generate AI release notes (optional: since tag)
 release-notes since="":
-    ./scripts/generate-release-notes.sh {{since}}
+    ./scripts/generate-release-notes.sh {{quote(since)}}
 
 # Weekly release: patch | minor | major
 release type="patch":
-    ./scripts/weekly-release.sh {{type}}
+    ./scripts/weekly-release.sh {{quote(type)}}
 
 # List available agent skills
 skills:

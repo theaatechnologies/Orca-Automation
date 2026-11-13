@@ -34,6 +34,7 @@ so-types: so-prepare
 
 # Python unit tests; pass pytest args, e.g. just so-unit tests/unit/sunbeam/test_utils.py
 so-unit *args: so-prepare
+    @./scripts/safe-arg.py args {{quote(args)}}
     {{in_ws}} 'cd {{so_py}} && {{tox}} -e unit -- {{args}}'
 
 # Go unit + static checks for sunbeam-microcluster
@@ -62,6 +63,7 @@ so-validate-yaml: so-clone
 
 # Summarise the current branch vs main for review (feeds the so-pr-review skill)
 so-diff base="origin/main": so-clone
+    @./scripts/safe-arg.py ref {{quote(base)}}
     git -C {{so_dir}} diff --stat {{base}}...HEAD
     git -C {{so_dir}} log --oneline {{base}}..HEAD
 
@@ -71,7 +73,8 @@ so-diff base="origin/main": so-clone
 so-signed base="origin/main": so-clone
     #!/usr/bin/env bash
     set -uo pipefail
-    cd {{so_dir}}
+    ./scripts/safe-arg.py ref {{quote(base)}} || exit 1
+    cd {{so_dir}} || exit 1
     printf '%-9s %-4s %-10s %s\n' COMMIT SIG SIGNED-OFF SUBJECT
     for c in $(git rev-list --reverse {{base}}..HEAD); do
         sig=$(git log -1 --format=%G? "$c" 2>/dev/null || echo ?)
