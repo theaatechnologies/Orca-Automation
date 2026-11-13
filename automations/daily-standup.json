@@ -1,0 +1,6 @@
+{
+  "name": "daily standup report",
+  "trigger": "weekdays", "time": "09:00",
+  "provider": "opencode",
+  "prompt": "Use the standup skill on the target repo from config/config.json (run `just target-clone` first). Write reports/standup-<date>.md. Read-only: do not commit or push."
+}

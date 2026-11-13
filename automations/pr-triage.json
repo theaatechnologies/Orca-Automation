@@ -1,0 +1,6 @@
+{
+  "name": "PR triage",
+  "trigger": "weekdays", "time": "13:00",
+  "provider": "opencode",
+  "prompt": "Use the pr-triage skill on the target repo from config/config.json. Write reports/pr-triage-<date>.md. Do not comment on, approve or merge any PR."
+}

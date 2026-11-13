@@ -1,4 +1,5 @@
 {
+  "target_repo": "canonical/snap-openstack",
   "github_handle": "your-handle",
   "email": "you@example.com",
   "release_branch": "main",

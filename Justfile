@@ -12,7 +12,7 @@ help:
     @just --list
 
 # Light setup, no containers: checks Orca, links skills, registers automations (disabled until you enable them)
-setup: doctor config skills-install automations-install
+setup: config setup-opencode doctor skills-install automations-install
     @echo ""
     @echo "✓ Setup complete. Try: just skills | just automations | just so-check | just agent"
 
@@ -28,6 +28,34 @@ doctor:
     if orca status 2>/dev/null | grep -q 'runtimeReachable: true'; then echo "✓ Orca runtime reachable"
     else echo "✗ Orca is not running: open the Orca app" >&2; fails=$((fails+1)); fi
     [ "$fails" -eq 0 ] && echo "✓ ready" || { echo "✗ $fails problem(s)" >&2; exit 1; }
+
+# Make sure opencode is installed and logged in (INSTALL=1 just setup-opencode installs it from opencode.ai)
+setup-opencode:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v opencode >/dev/null 2>&1; then
+        if [ "${INSTALL:-0}" = 1 ]; then
+            curl -fsSL https://opencode.ai/install | bash
+        else
+            echo "✗ opencode not installed. Run: INSTALL=1 just setup-opencode  (runs the installer from https://opencode.ai/install)" >&2; exit 1
+        fi
+    fi
+    if opencode providers list 2>/dev/null | grep -qE '[1-9][0-9]* credentials'; then
+        echo "✓ opencode installed and logged in"
+    elif [ -t 0 ]; then
+        opencode providers login
+    else
+        echo "✗ opencode has no model provider. Run: opencode providers login" >&2; exit 1
+    fi
+
+# Clone/update the target repo from config/config.json (target_repo) into git/<name>
+target-clone:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    repo=$(jq -r '.target_repo // "canonical/snap-openstack"' config/config.json 2>/dev/null || echo canonical/snap-openstack)
+    dir="git/${repo##*/}"; mkdir -p git
+    if [ -d "$dir/.git" ]; then git -C "$dir" pull --ff-only -q && echo "✓ updated $dir"
+    else git clone -q "https://github.com/$repo" "$dir" && echo "✓ cloned $repo -> $dir"; fi
 
 # Extra checks for the optional workshop container
 doctor-workshop:

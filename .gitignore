@@ -55,3 +55,4 @@ yarn-error.log*
 
 # Cloned repositories
 /git/
+/reports/

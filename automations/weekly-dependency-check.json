@@ -1,0 +1,6 @@
+{
+  "name": "weekly dependency check",
+  "trigger": "weekly", "day": 1, "time": "10:00",
+  "provider": "opencode",
+  "prompt": "Use the dependency-check skill on the target repo from config/config.json. Write reports/deps-<date>.md. Report only: do not edit lock files, commit or push."
+}
