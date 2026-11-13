@@ -27,6 +27,9 @@ check-automations:
 
 # shellcheck over every recipe body and script (runs in the workshop if shellcheck is missing)
 check-shell:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v shellcheck >/dev/null 2>&1; then just setup-workshop; fi
     ./scripts/check-just-shell.sh
 
 # Prove the gates fail on bad input (negative tests)
