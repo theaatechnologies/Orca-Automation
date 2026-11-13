@@ -1,6 +1,12 @@
 ---
 name: standup
 description: Summarise what changed in the target repo since yesterday as a short standup report. Use for daily standup, what changed, or activity summary requests.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Summarise what changed in the target repo since yesterday as a short standup report."
+  tags: ["standup"]
 ---
 
 # Standup

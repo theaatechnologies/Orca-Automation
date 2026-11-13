@@ -1,6 +1,8 @@
 {
   "name": "weekly release readiness report",
-  "trigger": "weekly", "day": 5, "time": "10:00",
+  "trigger": "weekly",
+  "day": 5,
+  "time": "10:00",
   "provider": "opencode",
-  "prompt": "Use the run-tests and release-notes skills. Run `just test`, then `just release-notes`, and summarise readiness to release. Do NOT run `just release`, tag, commit or push: a human releases."
+  "prompt": "Use the run-tests and release-notes skills. Run `just test`, then `just release-notes`, and write a readiness summary to reports/release-readiness-<date>.md (pass/fail per check, blockers). Do NOT run `just release`, tag, commit or push: a human releases."
 }

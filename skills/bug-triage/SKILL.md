@@ -1,6 +1,12 @@
 ---
 name: bug-triage
 description: Triage a bug report for any repo: extract facts, locate the code, write a failing test, propose a fix. Use when given a bug report or error.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Triage a bug report for any repo: extract facts, locate the code, write a failing test, propose a fix."
+  tags: ["bug", "triage"]
 ---
 
 # Bug Triage

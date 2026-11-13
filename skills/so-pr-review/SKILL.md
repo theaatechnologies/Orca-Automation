@@ -1,6 +1,12 @@
 ---
 name: so-pr-review
 description: Review a snap-openstack PR or branch against the repo conventions (logging guide, ADRs, signed commits, tests). Use when asked to review a snap-openstack change.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Review a snap-openstack PR or branch against the repo conventions (logging guide, ADRs, signed commits, tests)."
+  tags: ["pr", "review", "snap-openstack"]
 ---
 
 # snap-openstack: PR Review

@@ -1,6 +1,12 @@
 ---
 name: so-manifest-update
 description: Update charm revisions or add a release manifest under manifests/ (2024.1, 2025.1, 2026.1). Use for manifest or charm revision changes.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Update charm revisions or add a release manifest under manifests/ (2024.1, 2025.1, 2026.1)."
+  tags: ["manifest", "update", "snap-openstack"]
 ---
 
 # snap-openstack: Manifest Update

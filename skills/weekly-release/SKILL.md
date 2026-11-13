@@ -1,6 +1,12 @@
 ---
 name: weekly-release
 description: Cut a weekly release: test, notes, tag. Use only when the user explicitly asks to release.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Cut a weekly release: test, notes, tag."
+  tags: ["weekly", "release"]
 ---
 
 # Weekly Release

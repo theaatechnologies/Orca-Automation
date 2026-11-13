@@ -1,0 +1,6 @@
+{
+  "name": "daily commit standards audit",
+  "trigger": "weekdays", "time": "11:00",
+  "provider": "opencode",
+  "prompt": "Use the commit-hygiene and code-quality skills. In the target repo from config/config.json (run `just target-clone` first) audit commits from the last 24 hours against the repo's own conventions: message format, atomicity, sign-off. Write reports/commit-audit-<date>.md with one line per commit (ok / issue + reason). Report only: do not rewrite history, comment, commit or push."
+}

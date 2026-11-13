@@ -1,0 +1,6 @@
+{
+  "name": "weekly security scan",
+  "trigger": "weekly", "day": 3, "time": "10:00",
+  "provider": "opencode",
+  "prompt": "Use the security-review skill and the @security-auditor subagent on the target repo from config/config.json (run `just target-clone` first) and on this kit's own configuration. Write reports/security-<date>.md. Never print secret values. Report only: do not edit files, commit or push."
+}

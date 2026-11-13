@@ -1,6 +1,12 @@
 ---
 name: code-review
 description: Review a diff or PR for correctness, tests, and risk. Use when asked to review code.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Review a diff or PR for correctness, tests, and risk."
+  tags: ["code", "review"]
 ---
 
 # Code Review

@@ -1,6 +1,12 @@
 ---
 name: so-run-checks
 description: Run the snap-openstack CI checks locally (ruff, mypy, pytest, Go) and report with evidence. Use before declaring any snap-openstack change done.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Run the snap-openstack CI checks locally (ruff, mypy, pytest, Go) and report with evidence."
+  tags: ["run", "checks", "snap-openstack"]
 ---
 
 # snap-openstack: Run Checks

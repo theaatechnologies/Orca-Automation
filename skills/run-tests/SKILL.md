@@ -1,6 +1,12 @@
 ---
 name: run-tests
 description: Run unit/integration tests in the Workshop and report evidence-based results. Use when asked to test, verify, or validate changes.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Run unit/integration tests in the Workshop and report evidence-based results."
+  tags: ["run", "tests"]
 ---
 
 # Run Tests

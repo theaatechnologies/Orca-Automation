@@ -1,6 +1,12 @@
 ---
 name: pr-triage
 description: Triage open pull requests of the target repo: size, risk, missing tests, who should review. Use when asked to triage or prioritise PRs.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Triage open pull requests of the target repo: size, risk, missing tests, who should review."
+  tags: ["pr", "triage"]
 ---
 
 # PR Triage

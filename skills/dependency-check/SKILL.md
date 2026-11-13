@@ -1,6 +1,12 @@
 ---
 name: dependency-check
 description: Check the target repo for outdated or risky dependencies and summarise upgrades. Use for dependency, vulnerability or upgrade checks.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Check the target repo for outdated or risky dependencies and summarise upgrades."
+  tags: ["dependency", "check"]
 ---
 
 # Dependency Check

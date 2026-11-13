@@ -1,6 +1,12 @@
 ---
 name: so-bug-triage
 description: Triage a snap-openstack bug report: locate the code, reproduce with a unit test, propose a fix. Use when given a Launchpad bug or failure log.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Triage a snap-openstack bug report: locate the code, reproduce with a unit test, propose a fix."
+  tags: ["bug", "triage", "snap-openstack"]
 ---
 
 # snap-openstack: Bug Triage

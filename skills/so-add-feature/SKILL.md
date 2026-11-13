@@ -1,6 +1,12 @@
 ---
 name: so-add-feature
 description: Add or change a Sunbeam feature (sunbeam/features/*) following feature gates, tests and ADR rules. Use when implementing a new feature.
+license: Apache-2.0
+metadata:
+  author: orca-automation-workshop
+  version: "1.0.0"
+  summary: "Add or change a Sunbeam feature (sunbeam/features/*) following feature gates, tests and ADR rules."
+  tags: ["add", "feature", "snap-openstack"]
 ---
 
 # snap-openstack: Add a Feature

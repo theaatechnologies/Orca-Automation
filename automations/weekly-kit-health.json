@@ -1,0 +1,6 @@
+{
+  "name": "weekly kit health check",
+  "trigger": "weekly", "day": 5, "time": "09:00",
+  "provider": "opencode",
+  "prompt": "Use the kit-maintainer and evidence-based-verification skills. Run `just check`, `just test-gates` and `just check-upgrade`, then write reports/kit-health-<date>.md with the command, exit status and failing lines for each. Do not fix anything, upgrade, commit or push."
+}
