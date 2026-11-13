@@ -1,0 +1,39 @@
+name: Lint
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      # just comes from apt, never snap: snap confinement blocks keyring access.
+      - name: Install tooling
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y just shellcheck jq python3-yaml
+
+      - name: Justfile parses
+        run: just --list
+
+      # secrets, JSON/YAML, skill frontmatter, automation schema, shellcheck
+      - name: Run all gates
+        run: just check
+
+      # A gate that cannot fail is not a gate.
+      - name: Gates reject bad input
+        run: just test-gates
