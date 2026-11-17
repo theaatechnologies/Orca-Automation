@@ -1,5 +1,8 @@
 # Orca Automation Workshop - single entrypoint for every workflow.
-# Run `just` to list recipes. First time? Run `just launch-workshop` (reproducible) or `just setup` (host-based).
+# Run `just` to list recipes.
+#
+# RECOMMENDED: just launch-workshop (reproducible container setup)
+# ALTERNATIVE: just setup (host-based, faster but less reproducible)
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -14,12 +17,13 @@ import 'just/worktree.just'
 help:
     @just --list
 
-# Workshop-based setup (reproducible): launches Ubuntu 24.04 container with everything pre-installed
+# Workshop-based setup (RECOMMENDED): launches Ubuntu 24.04 container with everything pre-installed
 launch-workshop:
     #!/usr/bin/env bash
     set -euo pipefail
     if ! command -v workshop >/dev/null 2>&1; then
         echo "✗ workshop not installed. Run: sudo snap install --classic workshop" >&2
+        echo "  Then: lxd init --auto" >&2
         exit 1
     fi
     echo "==> Launching workshop 'automation' (this will install opencode and dependencies)"
@@ -28,18 +32,28 @@ launch-workshop:
     echo "==> Running setup inside workshop..."
     workshop exec automation -- bash /project/.workshop/setup-hook.sh
     echo ""
-    echo "✓ Workshop ready. Next steps:"
-    echo "  1. workshop shell automation  (enter the environment)"
-    echo "  2. On host: just automations-install  (register automations with Orca)"
+    echo "✓ Workshop ready!"
+    echo ""
+    echo "Next steps:"
+    echo "  1. just automations-install  (register automations with Orca)"
+    echo "  2. ENABLE=1 just automations-install  (to enable schedules)"
+    echo ""
+    echo "Try it:"
+    echo "  workshop shell automation  (enter the environment)"
+    echo "  orca automations run --id <id>  (run an automation)"
+    echo "  cat reports/*.md  (view reports)"
 
-# Light setup, no containers: checks Orca, links skills, registers automations (disabled until you enable them)
-# For Workshop-based setup, use: just launch-workshop
+# Host-based setup (alternative): checks Orca, links skills (no containers, less reproducible)
 setup: config setup-opencode doctor skills-install
     @echo ""
     @echo "✓ Host setup complete."
     @echo ""
-    @echo "Next: just launch-workshop  (creates reproducible container environment)"
-    @echo "Then: just automations-install  (registers automations that run in workshop)"
+    @echo "Next steps:"
+    @echo "  1. Edit config/config.json (set target_repo)"
+    @echo "  2. just target-clone  (clone target repo to git/)"
+    @echo "  3. just automations-install  (register automations)"
+    @echo ""
+    @echo "Note: For reproducible team environment, use 'just launch-workshop' instead"
 
 # Check what the light setup needs (git, jq, Orca running)
 doctor:

@@ -5,37 +5,102 @@ day-to-day team tasks: standups, PR triage, dependency and security scans, bug a
 code review, issue-to-PR work, release readiness. Point it at any repo; `canonical/snap-openstack`
 is the worked example. Architecture and standards follow Canonical's `ck8s-dev` workspace.
 
-## Quick start
+## Quick Start (5 minutes)
 
-**You need:** [Orca](https://github.com/stablyai/orca) running, and `just git jq`
-(`sudo apt install -y just git jq`). opencode is installed and logged in by step 1.
+### Prerequisites
 
 ```bash
-# 1. opencode (skip if `opencode providers list` already shows a provider)
-INSTALL=1 just setup-opencode   # installs from opencode.ai if missing, then `opencode providers login`
+# Ubuntu 24.04 or 22.04
+sudo apt install -y git jq
 
-# 2. one-command setup: links skills, registers the automations (disabled)
-just setup
+# Make sure Orca code editor is installed and running
+orca status  # Should show "runtimeReachable: true"
 
-# 3. pick the repo the automations work on (default canonical/snap-openstack)
-$EDITOR config/config.json      # set "target_repo": "owner/repo"
-just target-clone
-
-# 4. use it
-just skills                     # list skills
-just automations                # list scheduled automations
-just agent                      # interactive dev agent (commits locally, asks before any push)
-just check                      # all quality and security gates
+# Install Workshop (for reproducible container environment)
+sudo snap install --classic workshop
+sudo snap install lxd --channel=6/stable
+sudo usermod -aG lxd $USER
+newgrp lxd  # or logout/login
+lxd init --auto
 ```
 
-**Enable schedules:** `ENABLE=1 just automations-install` (re-run is safe), or toggle in the Orca app.
-**Run one now:** `orca automations run <id>` (ids from `just automations`). Reports land in `reports/`
-(gitignored) and reviews in `reviews/`. A run takes 2-5 minutes and uses your opencode model provider.
+### Setup (one command)
 
-**Heads-up:** unattended runs may only read inside this project; opencode auto-rejects other paths
-such as `/tmp`. Put inputs under the project, for example `reports/`.
+```bash
+git clone -b orca-automation-workshop https://github.com/theaatechnologies/Orca-Automation
+cd Orca-Automation
 
-## What is inside
+# Optional: change target repo (default: canonical/snap-openstack)
+nano config/example/config.json  # edit "target_repo"
+
+# Launch workshop - installs everything in Ubuntu 24.04 container
+just launch-workshop
+```
+
+**What this does:**
+- Creates Ubuntu 24.04 container
+- Installs opencode + just automatically
+- Links 24 skills
+- Clones your target repo inside
+- Takes ~2-3 minutes first time, ~10 seconds after (ZFS snapshots)
+
+### Register Automations
+
+```bash
+# Register (disabled by default)
+just automations-install
+
+# Or enable immediately
+ENABLE=1 just automations-install
+```
+
+### Use It
+
+```bash
+# List what's available
+just skills                      # 24 skills
+just automations                 # 9 automations
+
+# Run one manually
+orca automations run --id <id>   # Get ID from `just automations`
+cat reports/standup-*.md         # Reports appear here
+
+# Test inside workshop
+workshop shell automation
+  cd /project
+  opencode "Use standup skill"
+  exit
+
+# All gates
+just check
+```
+
+---
+
+## Alternative: Host-only Setup (no containers)
+
+If you don't want Workshop containers, you can run on your host machine:
+
+```bash
+# Install opencode
+INSTALL=1 just setup-opencode
+
+# Setup on host
+just setup
+
+# Edit config and clone target
+nano config/config.json
+just target-clone
+
+# Register automations
+just automations-install
+```
+
+**Trade-off:** Faster setup, but not reproducible across teammates' machines.
+
+---
+
+## What's Inside
 
 | Area | What |
 |---|---|
@@ -43,9 +108,7 @@ such as `/tmp`. Put inputs under the project, for example `reports/`.
 | **Automations** (9, `automations/`) | daily standup, PR triage, commit standards audit; weekly dependency check, security scan, kit health, release readiness; two snap-openstack examples |
 | **Agents** (`.opencode/agents/`) | `dev` (interactive, push needs approval), `reviewer` and `security-auditor` (read-only subagents) |
 | **Gates** (`just check`) | secret scan, JSON/YAML, skill frontmatter, automation schema, shellcheck over recipes; `just test-gates` proves each rejects bad input |
-| **CI** (`.github/`) | `lint.yml` runs the gates; `security.yml` runs zizmor and the secret scan; actions pinned to SHAs, read-only token |
-| **Worktrees** | `just worktree <repo> <name>`, `worktree-list`, `worktree-clean`: isolated branch per task |
-| **Upgrades** | `just check-upgrade` (read-only) and `just upgrade` (asks first) |
+| **Workshop** (`.workshop/`) | Reproducible Ubuntu 24.04 container with opencode, skills, and target repo |
 
 Automations run with **opencode** through Orca. `opencode.json` denies `git push/commit/tag`, merges,
 `sudo`, `rm -rf`, `just release` and secret-file reads, so unattended runs cannot change your repos.
@@ -63,18 +126,34 @@ Automations run with **opencode** through Orca. `opencode.json` denies `git push
 
 `AGENTS.md` is the contract for agents working in this repo.
 
-## Optional: isolated checks (needs `workshop` + `lxd`)
+## Troubleshooting
 
-`just so-check` (snap-openstack lint, mypy, unit, Go), `just test` (sample app) and the release
-readiness automation run in an Ubuntu 24.04 [Workshop](https://documentation.ubuntu.com/workshop/)
-container that starts on demand. `just doctor-workshop` checks the prerequisites.
+**"workshop not installed"**
+```bash
+sudo snap install --classic workshop
+```
 
-## Releasing
+**"lxd not initialized"**
+```bash
+lxd init --auto
+```
 
-`just release-notes` writes `RELEASE_NOTES.md` using opencode. `just release patch|minor|major` runs
-the gates, tags and pushes: **humans only**; agents are denied it and it refuses a dirty tree.
+**"permission denied" on lxd**
+```bash
+sudo usermod -aG lxd $USER
+newgrp lxd
+```
 
-## Add your own
+**"just command not found"**
+Workshop installs it automatically. On host: `curl --proto '=https' --tlsv1.2 -sSf https://just.systems/install.sh | bash`
+
+**"Orca not running"**
+```bash
+# Open the Orca code editor
+orca status  # should show runtimeReachable: true
+```
+
+## Add Your Own
 
 Use the `kit-maintainer` skill, or: skill in `skills/<name>/SKILL.md` then `just skills-install`;
 automation in `automations/<name>.json` then `just automations-install`; always finish with `just check`.
