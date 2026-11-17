@@ -157,23 +157,12 @@ automations-install:
             echo "✓ exists: $name"; continue
         fi
         
-        # Wrap prompt to run inside workshop
+        # Use original prompt - agent will run in workspace
         original_prompt=$(jq -r .prompt "$f")
-        wrapped_prompt="Execute this inside the workshop container:
-
-cd /project && opencode --skill <skill-name> '$original_prompt'
-
-The workshop has:
-- /project/repos/snap-openstack/
-- /project/repos/sunbeam-charms/  
-- /project/.opencode/skills/ (24 skills)
-- Write output to /project/reports/ or /project/reviews/
-
-All work happens inside the container."
         
         model=$(jq -r '.model // empty' "$f")
         args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
-              --provider "$(jq -r .provider "$f")" --prompt "$wrapped_prompt" \
+              --provider "$(jq -r .provider "$f")" --prompt "$original_prompt" \
               --workspace "path:$kit_path")
         day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
         [ -n "$model" ] && args+=(--extra-agent-args="--model $model")
