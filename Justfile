@@ -1,8 +1,5 @@
 # Orca Automation Workshop - single entrypoint for every workflow.
-# Run `just` to list recipes.
-#
-# RECOMMENDED: just launch-workshop (reproducible container setup)
-# ALTERNATIVE: just setup (host-based, faster but less reproducible)
+# Run `just` to list recipes. First time? Run `just launch-workshop` (reproducible) or `just setup` (host-based).
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -17,13 +14,12 @@ import 'just/worktree.just'
 help:
     @just --list
 
-# Workshop-based setup (RECOMMENDED): launches Ubuntu 24.04 container with everything pre-installed
+# Workshop-based setup (reproducible): launches Ubuntu 24.04 container with everything pre-installed
 launch-workshop:
     #!/usr/bin/env bash
     set -euo pipefail
     if ! command -v workshop >/dev/null 2>&1; then
         echo "✗ workshop not installed. Run: sudo snap install --classic workshop" >&2
-        echo "  Then: lxd init --auto" >&2
         exit 1
     fi
     echo "==> Launching workshop 'automation' (this will install opencode and dependencies)"
@@ -32,28 +28,18 @@ launch-workshop:
     echo "==> Running setup inside workshop..."
     workshop exec automation -- bash /project/.workshop/setup-hook.sh
     echo ""
-    echo "✓ Workshop ready!"
-    echo ""
-    echo "Next steps:"
-    echo "  1. just automations-install  (register automations with Orca)"
-    echo "  2. ENABLE=1 just automations-install  (to enable schedules)"
-    echo ""
-    echo "Try it:"
-    echo "  workshop shell automation  (enter the environment)"
-    echo "  orca automations run --id <id>  (run an automation)"
-    echo "  cat reports/*.md  (view reports)"
+    echo "✓ Workshop ready. Next steps:"
+    echo "  1. workshop shell automation  (enter the environment)"
+    echo "  2. On host: just automations-install  (register automations with Orca)"
 
-# Host-based setup (alternative): checks Orca, links skills (no containers, less reproducible)
+# Light setup, no containers: checks Orca, links skills, registers automations (disabled until you enable them)
+# For Workshop-based setup, use: just launch-workshop
 setup: config setup-opencode doctor skills-install
     @echo ""
     @echo "✓ Host setup complete."
     @echo ""
-    @echo "Next steps:"
-    @echo "  1. Edit config/config.json (set target_repo)"
-    @echo "  2. just target-clone  (clone target repo to git/)"
-    @echo "  3. just automations-install  (register automations)"
-    @echo ""
-    @echo "Note: For reproducible team environment, use 'just launch-workshop' instead"
+    @echo "Next: just launch-workshop  (creates reproducible container environment)"
+    @echo "Then: just automations-install  (registers automations that run in workshop)"
 
 # Check what the light setup needs (git, jq, Orca running)
 doctor:
@@ -147,15 +133,21 @@ skills-install:
     echo "✓ linked $(find skills -mindepth 1 -maxdepth 1 -type d | wc -l) skills into .agents/skills and .opencode/skills"
 
 # Register the scheduled Orca automations in automations/ (created DISABLED; ENABLE=1 just automations-install to enable)
-# Skills auto-detect their environment (workshop or host) and adapt paths accordingly
+# All automations run INSIDE the workshop container
 automations-install:
     #!/usr/bin/env bash
     set -euo pipefail
     
-    # Get the kit's absolute path (where we run this from)
+    # Check workshop is running
+    if ! workshop info automation 2>/dev/null | grep -qE "status:.*[Rr]eady"; then
+        echo "✗ Workshop 'automation' not running. Run: just launch-workshop" >&2
+        exit 1
+    fi
+    
+    # Get the kit's absolute path
     kit_path="$(pwd)"
     
-    echo "Registering automations (skills will auto-detect environment)"
+    echo "Registering automations (will run inside workshop container)"
     echo "Kit path: $kit_path"
     
     existing="$(orca automations list --json 2>/dev/null || echo '[]')"
@@ -165,12 +157,23 @@ automations-install:
             echo "✓ exists: $name"; continue
         fi
         
-        # Use original prompt - skills handle environment detection themselves
+        # Wrap prompt to run inside workshop
         original_prompt=$(jq -r .prompt "$f")
+        wrapped_prompt="Execute this inside the workshop container:
+
+cd /project && opencode --skill <skill-name> '$original_prompt'
+
+The workshop has:
+- /project/repos/snap-openstack/
+- /project/repos/sunbeam-charms/  
+- /project/.opencode/skills/ (24 skills)
+- Write output to /project/reports/ or /project/reviews/
+
+All work happens inside the container."
         
         model=$(jq -r '.model // empty' "$f")
         args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
-              --provider "$(jq -r .provider "$f")" --prompt "$original_prompt" \
+              --provider "$(jq -r .provider "$f")" --prompt "$wrapped_prompt" \
               --workspace "path:$kit_path")
         day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
         [ -n "$model" ] && args+=(--extra-agent-args="--model $model")
