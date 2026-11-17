@@ -133,21 +133,15 @@ skills-install:
     echo "✓ linked $(find skills -mindepth 1 -maxdepth 1 -type d | wc -l) skills into .agents/skills and .opencode/skills"
 
 # Register the scheduled Orca automations in automations/ (created DISABLED; ENABLE=1 just automations-install to enable)
-# These run via workshop exec, so they have access to skills, target repo, and can write reports
+# Skills auto-detect their environment (workshop or host) and adapt paths accordingly
 automations-install:
     #!/usr/bin/env bash
     set -euo pipefail
     
-    # Check workshop is ready
-    if ! workshop info automation 2>/dev/null | grep -q "ready\|Ready"; then
-        echo "✗ Workshop 'automation' not running. Run: just launch-workshop" >&2
-        exit 1
-    fi
-    
     # Get the kit's absolute path (where we run this from)
     kit_path="$(pwd)"
     
-    echo "Registering automations (will run via workshop exec)"
+    echo "Registering automations (skills will auto-detect environment)"
     echo "Kit path: $kit_path"
     
     existing="$(orca automations list --json 2>/dev/null || echo '[]')"
@@ -157,24 +151,13 @@ automations-install:
             echo "✓ exists: $name"; continue
         fi
         
-        # Read original prompt and wrap it to run in workshop
+        # Use original prompt - skills handle environment detection themselves
         original_prompt=$(jq -r .prompt "$f")
-        wrapped_prompt="Run this task inside the workshop container at $kit_path:
-
-TASK: $original_prompt
-
-CRITICAL INSTRUCTIONS:
-1. You are running on the HOST, but must execute inside workshop via: ./scripts/workshop-exec.sh \"command\"
-2. Skills are at /project/.opencode/skills/ inside the workshop
-3. Target repo is at /project/repos/snap-openstack/ inside the workshop  
-4. Write reports to /project/reports/ (visible on host at $kit_path/reports/)
-5. Use the workshop-exec.sh wrapper for all opencode/git commands
-
-Example: ./scripts/workshop-exec.sh \"opencode 'Generate standup from /project/repos/snap-openstack'\""
-
+        
         model=$(jq -r '.model // empty' "$f")
         args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
-              --provider "$(jq -r .provider "$f")" --prompt "$wrapped_prompt")
+              --provider "$(jq -r .provider "$f")" --prompt "$original_prompt" \
+              --workspace "path:$kit_path")
         day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
         [ -n "$model" ] && args+=(--extra-agent-args="--model $model")
         [ "${ENABLE:-0}" = 1 ] && args+=(--enabled) || args+=(--disabled)

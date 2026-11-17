@@ -1,6 +1,7 @@
 {
   "name": "PR triage",
-  "trigger": "weekdays", "time": "13:00",
+  "trigger": "weekdays",
+  "time": "13:00",
   "provider": "opencode",
-  "prompt": "Use the pr-triage skill on the target repo from config/config.json. Write reports/pr-triage-<date>.md. Do not comment on, approve or merge any PR."
+  "prompt": "Use the pr-triage skill to analyze all open pull requests. The skill will auto-detect the target repository location. Sort PRs by priority (high-risk and old PRs first). Write to reports/pr-triage-YYYY-MM-DD.md. Read-only."
 }
