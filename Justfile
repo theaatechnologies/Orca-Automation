@@ -33,11 +33,13 @@ launch-workshop:
     echo "  2. On host: just automations-install  (register automations with Orca)"
 
 # Light setup, no containers: checks Orca, links skills, registers automations (disabled until you enable them)
-setup: config setup-opencode doctor skills-install target-clone automations-install
+# For Workshop-based setup, use: just launch-workshop
+setup: config setup-opencode doctor skills-install
     @echo ""
-    @echo "✓ Setup complete. Try: just skills | just automations | just so-check | just agent"
+    @echo "✓ Host setup complete."
     @echo ""
-    @echo "To enable automations: ENABLE=1 just automations-install"
+    @echo "Next: just launch-workshop  (creates reproducible container environment)"
+    @echo "Then: just automations-install  (registers automations that run in workshop)"
 
 # Check what the light setup needs (git, jq, Orca running)
 doctor:
@@ -131,23 +133,22 @@ skills-install:
     echo "✓ linked $(find skills -mindepth 1 -maxdepth 1 -type d | wc -l) skills into .agents/skills and .opencode/skills"
 
 # Register the scheduled Orca automations in automations/ (created DISABLED; ENABLE=1 just automations-install to enable)
+# These run via workshop exec, so they have access to skills, target repo, and can write reports
 automations-install:
     #!/usr/bin/env bash
     set -euo pipefail
     
-    # Read target_repo from config and get its path for Orca
-    target_repo=$(jq -r '.target_repo // "canonical/snap-openstack"' config/config.json 2>/dev/null || echo "canonical/snap-openstack")
-    ./scripts/safe-arg.py repo "$target_repo" || { echo "✗ Invalid target_repo in config/config.json" >&2; exit 1; }
-    repo_name="${target_repo##*/}"
-    repo_path="git/$repo_name"
-    
-    if [ ! -d "$repo_path/.git" ]; then
-        echo "✗ Target repo not cloned. Run: just target-clone" >&2
+    # Check workshop is ready
+    if ! workshop info automation 2>/dev/null | grep -q "ready\|Ready"; then
+        echo "✗ Workshop 'automation' not running. Run: just launch-workshop" >&2
         exit 1
     fi
     
-    abs_path="$(cd "$repo_path" && pwd)"
-    echo "Registering automations for repo at: $abs_path"
+    # Get the kit's absolute path (where we run this from)
+    kit_path="$(pwd)"
+    
+    echo "Registering automations (will run via workshop exec)"
+    echo "Kit path: $kit_path"
     
     existing="$(orca automations list --json 2>/dev/null || echo '[]')"
     for f in automations/*.json; do
@@ -155,10 +156,25 @@ automations-install:
         if echo "$existing" | jq -e --arg n "$name" '.. | objects | select(.name? == $n)' >/dev/null 2>&1; then
             echo "✓ exists: $name"; continue
         fi
+        
+        # Read original prompt and wrap it to run in workshop
+        original_prompt=$(jq -r .prompt "$f")
+        wrapped_prompt="Run this task inside the workshop container at $kit_path:
+
+TASK: $original_prompt
+
+CRITICAL INSTRUCTIONS:
+1. You are running on the HOST, but must execute inside workshop via: ./scripts/workshop-exec.sh \"command\"
+2. Skills are at /project/.opencode/skills/ inside the workshop
+3. Target repo is at /project/repos/snap-openstack/ inside the workshop  
+4. Write reports to /project/reports/ (visible on host at $kit_path/reports/)
+5. Use the workshop-exec.sh wrapper for all opencode/git commands
+
+Example: ./scripts/workshop-exec.sh \"opencode 'Generate standup from /project/repos/snap-openstack'\""
+
         model=$(jq -r '.model // empty' "$f")
         args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
-              --provider "$(jq -r .provider "$f")" --prompt "$(jq -r .prompt "$f")" \
-              --repo "path:$abs_path")
+              --provider "$(jq -r .provider "$f")" --prompt "$wrapped_prompt")
         day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
         [ -n "$model" ] && args+=(--extra-agent-args="--model $model")
         [ "${ENABLE:-0}" = 1 ] && args+=(--enabled) || args+=(--disabled)
