@@ -1,5 +1,5 @@
 # Orca Automation Workshop - single entrypoint for every workflow.
-# Run `just` to list recipes. First time? Run `just setup`.
+# Run `just` to list recipes. First time? Run `just launch-workshop` (reproducible) or `just setup` (host-based).
 
 set shell := ["bash", "-euo", "pipefail", "-c"]
 
@@ -14,10 +14,30 @@ import 'just/worktree.just'
 help:
     @just --list
 
+# Workshop-based setup (reproducible): launches Ubuntu 24.04 container with everything pre-installed
+launch-workshop:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    if ! command -v workshop >/dev/null 2>&1; then
+        echo "✗ workshop not installed. Run: sudo snap install --classic workshop" >&2
+        exit 1
+    fi
+    echo "==> Launching workshop 'automation' (this will install opencode and dependencies)"
+    workshop launch automation --verbose
+    echo ""
+    echo "==> Running setup inside workshop..."
+    workshop exec automation -- bash /project/.workshop/setup-hook.sh
+    echo ""
+    echo "✓ Workshop ready. Next steps:"
+    echo "  1. workshop shell automation  (enter the environment)"
+    echo "  2. On host: just automations-install  (register automations with Orca)"
+
 # Light setup, no containers: checks Orca, links skills, registers automations (disabled until you enable them)
-setup: config setup-opencode doctor skills-install automations-install
+setup: config setup-opencode doctor skills-install target-clone automations-install
     @echo ""
     @echo "✓ Setup complete. Try: just skills | just automations | just so-check | just agent"
+    @echo ""
+    @echo "To enable automations: ENABLE=1 just automations-install"
 
 # Check what the light setup needs (git, jq, Orca running)
 doctor:
@@ -55,15 +75,30 @@ setup-opencode:
         echo "✗ opencode has no model provider. Run: opencode providers login" >&2; exit 1
     fi
 
-# Clone/update the target repo from config/config.json (target_repo) into git/<name>
+# Clone/update the target repo from config/config.json (target_repo) into git/<name> and register with Orca
 target-clone:
     #!/usr/bin/env bash
     set -euo pipefail
     repo=$(jq -r '.target_repo // "canonical/snap-openstack"' config/config.json 2>/dev/null || echo canonical/snap-openstack)
     ./scripts/safe-arg.py repo "$repo" || { echo "config/config.json target_repo must look like owner/repo" >&2; exit 1; }
     dir="git/${repo##*/}"; mkdir -p git
-    if [ -d "$dir/.git" ]; then git -C "$dir" pull --ff-only -q && echo "✓ updated $dir"
-    else git clone -q "https://github.com/$repo" "$dir" && echo "✓ cloned $repo -> $dir"; fi
+    if [ -d "$dir/.git" ]; then 
+        git -C "$dir" pull --ff-only -q && echo "✓ updated $dir"
+    else 
+        git clone -q "https://github.com/$repo" "$dir" && echo "✓ cloned $repo -> $dir"
+    fi
+    
+    # Register with Orca if not already registered
+    abs_dir="$(cd "$dir" && pwd)"
+    if orca repo list 2>/dev/null | grep -qF "$abs_dir"; then
+        echo "✓ repo already registered in Orca"
+    else
+        if orca repo add --path "$abs_dir" 2>&1 | grep -qE '(added|Added|exists)'; then
+            echo "✓ registered with Orca: $abs_dir"
+        else
+            echo "⚠ could not auto-register (may need manual: orca repo add --path $abs_dir)" >&2
+        fi
+    fi
 
 # Extra checks for the optional workshop container
 doctor-workshop:
@@ -99,6 +134,21 @@ skills-install:
 automations-install:
     #!/usr/bin/env bash
     set -euo pipefail
+    
+    # Read target_repo from config and get its path for Orca
+    target_repo=$(jq -r '.target_repo // "canonical/snap-openstack"' config/config.json 2>/dev/null || echo "canonical/snap-openstack")
+    ./scripts/safe-arg.py repo "$target_repo" || { echo "✗ Invalid target_repo in config/config.json" >&2; exit 1; }
+    repo_name="${target_repo##*/}"
+    repo_path="git/$repo_name"
+    
+    if [ ! -d "$repo_path/.git" ]; then
+        echo "✗ Target repo not cloned. Run: just target-clone" >&2
+        exit 1
+    fi
+    
+    abs_path="$(cd "$repo_path" && pwd)"
+    echo "Registering automations for repo at: $abs_path"
+    
     existing="$(orca automations list --json 2>/dev/null || echo '[]')"
     for f in automations/*.json; do
         name=$(jq -r .name "$f")
@@ -107,11 +157,18 @@ automations-install:
         fi
         model=$(jq -r '.model // empty' "$f")
         args=(--name "$name" --trigger "$(jq -r .trigger "$f")" --time "$(jq -r .time "$f")" \
-              --provider "$(jq -r .provider "$f")" --prompt "$(jq -r .prompt "$f")")
+              --provider "$(jq -r .provider "$f")" --prompt "$(jq -r .prompt "$f")" \
+              --repo "path:$abs_path")
         day=$(jq -r '.day // empty' "$f"); [ -n "$day" ] && args+=(--day "$day")
         [ -n "$model" ] && args+=(--extra-agent-args="--model $model")
         [ "${ENABLE:-0}" = 1 ] && args+=(--enabled) || args+=(--disabled)
-        orca automations create "${args[@]}" >/dev/null && echo "✓ created: $name"
+        
+        if orca automations create "${args[@]}" 2>&1; then
+            echo "✓ created: $name"
+        else
+            echo "✗ failed to create: $name" >&2
+            exit 1
+        fi
     done
 
 # List the registered automations
